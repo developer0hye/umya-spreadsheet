@@ -123,8 +123,8 @@ impl Columns {
                 if e.name().into_inner() == b"col" {
                     let mut obj = Column::default();
                     obj.set_attributes(reader, e, stylesheet);
-                    let min = get_attribute(e, b"min").unwrap().parse::<u32>().unwrap();
-                    let max = get_attribute(e, b"max").unwrap().parse::<u32>().unwrap();
+                    let min = get_attribute(e, b"min").and_then(|v| v.parse::<u32>().ok()).unwrap_or(1);
+                    let max = get_attribute(e, b"max").and_then(|v| v.parse::<u32>().ok()).unwrap_or(min);
                     for i in min..=max {
                         obj.set_col_num(i);
                         self.set_column(obj.clone());

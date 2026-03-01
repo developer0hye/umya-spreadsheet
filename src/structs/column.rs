@@ -252,8 +252,10 @@ impl Column {
         set_string_from_xml!(self, e, best_fit, "bestFit");
 
         if let Some(v) = get_attribute(e, b"style") {
-            let style = stylesheet.style(v.parse::<usize>().unwrap());
-            self.set_style(style);
+            if let Ok(id) = v.parse::<usize>() {
+                let style = stylesheet.style(id);
+                self.set_style(style);
+            }
         }
     }
 }

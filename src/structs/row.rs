@@ -232,8 +232,10 @@ impl Row {
         }
 
         if let Some(v) = get_attribute(e, b"s") {
-            let style = stylesheet.style(v.parse::<usize>().unwrap());
-            self.set_style(style);
+            if let Ok(id) = v.parse::<usize>() {
+                let style = stylesheet.style(id);
+                self.set_style(style);
+            }
         }
 
         if empty_flag {
