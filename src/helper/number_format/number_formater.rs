@@ -64,8 +64,14 @@ pub(crate) fn format_as_number<'input>(value: &f64, format: &'input str) -> Cow<
         format = format.replace('#', "0");
         // Remove \
         format = format.replace('\\', "");
-        // Remove locale code [$-###]
-        format = format.replace("[$-.*]", "");
+        // Remove locale codes like [$-3000401]; the previous literal
+        // replace of "[$-.*]" never matched anything.
+        while let Some(start) = format.find("[$-") {
+            match format[start..].find(']') {
+                Some(offset) => format.replace_range(start..start + offset + 1, ""),
+                None => break,
+            }
+        }
         // Trim
         format = format.trim().to_string();
 
