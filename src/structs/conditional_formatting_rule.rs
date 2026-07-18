@@ -268,6 +268,7 @@ impl ConditionalFormattingRule {
     ) {
         set_string_from_xml!(self, e, r#type, "type");
         set_string_from_xml!(self, e, operator, "operator");
+        set_string_from_xml!(self, e, text, "text");
 
         if let Some(v) = get_attribute(e, b"dxfId") {
             if let Ok(dxf_id) = v.parse::<usize>() {
@@ -347,6 +348,11 @@ impl ConditionalFormattingRule {
         let operator = self.operator.get_value_string();
         if self.operator.has_value() {
             attributes.push(("operator", operator));
+        }
+
+        let text = self.text.get_value_str();
+        if self.text.has_value() {
+            attributes.push(("text", text));
         }
 
         let dxf_id_str: String;
