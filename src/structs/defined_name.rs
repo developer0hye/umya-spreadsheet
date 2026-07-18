@@ -33,12 +33,16 @@ impl DefinedName {
     }
 
     pub fn get_address(&self) -> String {
-        if self.string_value.has_value() {
-            return self.string_value.get_value_str().to_string();
-        }
-        let mut result: Vec<String> = Vec::with_capacity(self.address.len());
+        // A comma-separated definition can mix parseable addresses with
+        // parts that only exist as the raw string (e.g. row-only ranges in
+        // print titles like `Sheet4!$A:$B,Sheet4!$2:$3`); returning only the
+        // string part silently dropped the parsed addresses.
+        let mut result: Vec<String> = Vec::with_capacity(self.address.len() + 1);
         for row in &self.address {
             result.push(row.get_address_ptn2());
+        }
+        if self.string_value.has_value() {
+            result.push(self.string_value.get_value_str().to_string());
         }
         result.join(",")
     }
