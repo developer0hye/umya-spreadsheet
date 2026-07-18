@@ -52,6 +52,11 @@ impl DefinedName {
         for v in &list {
             if is_address(&v) {
                 self.add_address(v);
+            } else if self.string_value.has_value() {
+                // Several unparseable parts (e.g. print titles with both a
+                // column-only and a row-only range) must all survive.
+                let merged = format!("{},{}", self.string_value.get_value_str(), v);
+                self.set_string_value(merged);
             } else {
                 self.set_string_value(v);
             }
