@@ -1,5 +1,6 @@
 use super::Color;
 use super::ConditionalFormatValueObject;
+use super::StringValue;
 use crate::reader::driver::*;
 use crate::writer::driver::*;
 use quick_xml::events::BytesStart;
@@ -11,11 +12,23 @@ use thin_vec::ThinVec;
 
 #[derive(Clone, Default, Debug)]
 pub struct IconSet {
+    icon_set_type: StringValue,
     cfvo_collection: ThinVec<ConditionalFormatValueObject>,
     color_collection: ThinVec<Color>,
 }
 
 impl IconSet {
+    #[inline]
+    pub fn get_icon_set_type(&self) -> &str {
+        self.icon_set_type.get_value_str()
+    }
+
+    #[inline]
+    pub fn set_icon_set_type<S: Into<String>>(&mut self, value: S) -> &mut Self {
+        self.icon_set_type.set_value(value);
+        self
+    }
+
     #[inline]
     pub fn get_cfvo_collection(&self) -> &[ConditionalFormatValueObject] {
         &self.cfvo_collection
@@ -56,8 +69,10 @@ impl IconSet {
     pub(crate) fn set_attributes<R: std::io::BufRead>(
         &mut self,
         reader: &mut Reader<R>,
-        _e: &BytesStart,
+        e: &BytesStart,
     ) {
+        set_string_from_xml!(self, e, icon_set_type, "iconSet");
+
         xml_read_loop!(
             reader,
                 Event::Empty(ref e) => {
@@ -85,8 +100,13 @@ impl IconSet {
     }
 
     pub(crate) fn write_to(&self, writer: &mut Writer<Cursor<Vec<u8>>>) {
-        // dataBar
-        write_start_tag(writer, "dataBar", vec![], false);
+        // iconSet
+        let mut attributes: Vec<(&str, &str)> = Vec::new();
+        let icon_set_type = self.icon_set_type.get_value_str();
+        if self.icon_set_type.has_value() {
+            attributes.push(("iconSet", icon_set_type));
+        }
+        write_start_tag(writer, "iconSet", attributes, false);
 
         // cfvo
         for v in &self.cfvo_collection {
@@ -98,6 +118,6 @@ impl IconSet {
             v.write_to_color(writer);
         }
 
-        write_end_tag(writer, "dataBar");
+        write_end_tag(writer, "iconSet");
     }
 }
