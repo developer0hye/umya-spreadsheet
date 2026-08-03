@@ -109,9 +109,20 @@ pub fn to_formatted_string<S: AsRef<str>, P: AsRef<str>>(value: S, format: P) ->
         // datetime format
         value = date_formater::format_as_date(&reparsed, &format);
     } else if format.starts_with('"') && format.ends_with('"') {
-        if let Ok(conv_format) = format.trim_matches('"').parse::<f64>() {
-            value = Cow::Owned(conv_format.to_string());
-        }
+        // A section that is entirely a quoted literal renders that literal.
+        // Excel uses this for formats like `"TRUE";"TRUE";"FALSE"`, where the
+        // section carries no numeric placeholder at all and the displayed text
+        // does not depend on the value beyond which section was selected.
+        //
+        // A quoted *number* such as `"123"` keeps its existing round-trip
+        // through f64 so its formatting is normalised; only the non-numeric
+        // case changed, which previously left the raw value untouched and so
+        // printed the number where the literal was asked for.
+        let literal = format.trim_matches('"');
+        value = Cow::Owned(match literal.parse::<f64>() {
+            Ok(conv_format) => conv_format.to_string(),
+            Err(_) => literal.to_string(),
+        });
     } else if PERCENT_DOLLAR_REGEX.is_match(&format).unwrap_or(false) {
         // % number format
         value = percentage_formater::format_as_percentage(&reparsed, &format);
@@ -407,4 +418,20 @@ fn test_to_formatted_string_date() {
         to_formatted_string(&value, NumberingFormat::FORMAT_DATE_YYYYMMDDSLASH)
     );
     assert_eq!(r#"2"#, to_formatted_string(&value, "d"))
+}
+
+#[test]
+fn test_to_formatted_string_literal_text_section() {
+    // `"TRUE";"TRUE";"FALSE"` selects by sign and renders a literal; no
+    // section holds a numeric placeholder.
+    let format = r#""TRUE";"TRUE";"FALSE""#;
+    assert_eq!(to_formatted_string("2", format), "TRUE");
+    assert_eq!(to_formatted_string("-2", format), "TRUE");
+    assert_eq!(to_formatted_string("0", format), "FALSE");
+}
+
+#[test]
+fn test_to_formatted_string_quoted_number_section_still_normalises() {
+    // A quoted numeric literal keeps its existing behaviour.
+    assert_eq!(to_formatted_string("5", r#""123""#), "123");
 }
