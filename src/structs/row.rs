@@ -21,6 +21,7 @@ pub struct Row {
     row_num: UInt32Value,
     height: DoubleValue,
     descent: DoubleValue,
+    thick_top: BooleanValue,
     thick_bot: BooleanValue,
     custom_height: BooleanValue,
     hidden: BooleanValue,
@@ -33,6 +34,7 @@ impl Default for Row {
             row_num: UInt32Value::default(),
             height: DoubleValue::default(),
             descent: DoubleValue::default(),
+            thick_top: BooleanValue::default(),
             thick_bot: BooleanValue::default(),
             custom_height: BooleanValue::default(),
             hidden: BooleanValue::default(),
@@ -72,6 +74,17 @@ impl Row {
     #[inline]
     pub fn set_descent(&mut self, value: f64) -> &mut Self {
         self.descent.set_value(value);
+        self
+    }
+
+    #[inline]
+    pub fn get_thick_top(&self) -> &bool {
+        self.thick_top.get_value()
+    }
+
+    #[inline]
+    pub fn set_thick_top(&mut self, value: bool) -> &mut Self {
+        self.thick_top.set_value(value);
         self
     }
 
@@ -141,6 +154,7 @@ impl Row {
     ) {
         set_string_from_xml!(self, e, row_num, "r");
         set_string_from_xml!(self, e, height, "ht");
+        set_string_from_xml!(self, e, thick_top, "thickTop");
         set_string_from_xml!(self, e, thick_bot, "thickBot");
         set_string_from_xml!(self, e, custom_height, "customHeight");
         set_string_from_xml!(self, e, hidden, "hidden");
@@ -206,6 +220,9 @@ impl Row {
         if self.height.get_value() != &0f64 {
             attributes.push(("ht", &height));
         }
+        if *self.thick_top.get_value() {
+            attributes.push(("thickTop", self.thick_top.get_value_string()));
+        }
         if *self.thick_bot.get_value() {
             attributes.push(("thickBot", self.thick_bot.get_value_string()));
         }
@@ -252,5 +269,37 @@ impl AdjustmentValue for Row {
     fn is_remove_value(&self, root_num: &u32, offset_num: &u32) -> bool {
         self.row_num.get_value() >= root_num
             && self.row_num.get_value() <= &(root_num + offset_num - 1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn thick_top_roundtrips_through_ooxml_attributes() {
+        let mut row = Row::default();
+        row.set_thick_top(true);
+
+        let mut writer = Writer::new(Cursor::new(Vec::new()));
+        row.write_to(&mut writer, &mut Stylesheet::default(), "", true);
+        let xml = String::from_utf8(writer.into_inner().into_inner()).unwrap();
+        assert!(xml.contains("thickTop=\"1\""));
+
+        let mut reader = Reader::from_str(&xml);
+        let Event::Empty(element) = reader.read_event().unwrap() else {
+            panic!("expected an empty row element");
+        };
+        let mut parsed = Row::default();
+        parsed.set_attributes(
+            &mut reader,
+            &element,
+            &mut Cells::default(),
+            &SharedStringTable::default(),
+            &Stylesheet::default(),
+            &mut HashMap::new(),
+            true,
+        );
+        assert!(*parsed.get_thick_top());
     }
 }
