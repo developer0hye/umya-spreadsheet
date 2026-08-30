@@ -78,17 +78,24 @@ pub fn to_formatted_string<S: AsRef<str>, P: AsRef<str>>(value: S, format: P) ->
         _ => {}
     }
 
-    // Convert any other escaped characters to quoted strings, e.g. (\T to "T")
+    let Ok(parsed_val) = value.parse::<f64>() else {
+        return value.to_string();
+    };
 
+    // Inspect the selected raw section before escaped characters are rewritten.
+    // This allows placeholder-free sections to retain their literal meaning.
+    let raw_sections: Vec<&str> = split(&SECTION_REGEX, &format).collect();
+    let (_, raw_split_format, _) = split_format(raw_sections, &parsed_val);
+    if let Some(literal) = literal_only_section(&raw_split_format) {
+        return literal.trim().to_string();
+    }
+
+    // Convert any other escaped characters to quoted strings, e.g. (\T to "T")
     let mut format = ESCAPE_REGEX.replace_all(&format, r#""$0""#);
 
     // Get the sections, there can be up to four sections, separated with a semi-colon (but only if not a quoted literal)
 
     let sections: Vec<&str> = split(&SECTION_REGEX, &format).collect();
-
-    let Ok(parsed_val) = value.parse::<f64>() else {
-        return value.to_string();
-    };
 
     let (_, split_format, split_value) = split_format(sections, &parsed_val);
     format = Cow::Owned(split_format);
@@ -130,6 +137,54 @@ pub fn to_formatted_string<S: AsRef<str>, P: AsRef<str>>(value: S, format: P) ->
         value = number_formater::format_as_number(&reparsed, &format);
     }
     value.trim().to_string()
+}
+
+/// Decode a section that contains literals but no value placeholder.
+///
+/// Excel uses these sections for displays such as a dash in place of zero:
+/// `#,##0;[Red](#,##0);\-\ \ `. Quoted text and backslash escapes are
+/// literal. `_x` becomes one space, while `*x` contributes one fill character
+/// because this string formatter has no cell width. Value-dependent formats
+/// stay on the existing date/number paths.
+fn literal_only_section(format: &str) -> Option<String> {
+    if DATE_TIME_REGEX.is_match(format).unwrap_or(false) {
+        return None;
+    }
+
+    let mut result = String::with_capacity(format.len());
+    let mut chars = format.chars();
+    let mut in_quotes = false;
+
+    while let Some(ch) = chars.next() {
+        if in_quotes {
+            if ch == '"' {
+                in_quotes = false;
+            } else {
+                result.push(ch);
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => in_quotes = true,
+            '\\' | '*' => result.push(chars.next()?),
+            '_' => {
+                chars.next()?;
+                result.push(' ');
+            }
+            '[' => {
+                for control in chars.by_ref() {
+                    if control == ']' {
+                        break;
+                    }
+                }
+            }
+            '0' | '#' | '?' | '@' | '%' => return None,
+            _ => result.push(ch),
+        }
+    }
+
+    (!in_quotes).then_some(result)
 }
 
 fn split_format(sections: Vec<&str>, value: &f64) -> (String, String, String) {
@@ -434,4 +489,12 @@ fn test_to_formatted_string_literal_text_section() {
 fn test_to_formatted_string_quoted_number_section_still_normalises() {
     // A quoted numeric literal keeps its existing behaviour.
     assert_eq!(to_formatted_string("5", r#""123""#), "123");
+}
+
+#[test]
+fn test_to_formatted_string_zero_section_with_only_escaped_literals() {
+    let format = r"#,##0_);[Red]\(#,##0\);\-\ \ ";
+
+    assert_eq!("-", to_formatted_string("0", format));
+    assert_eq!("", to_formatted_string("0", "0;-0;"));
 }
