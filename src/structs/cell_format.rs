@@ -352,7 +352,9 @@ mod tests {
     // rewrote each xfId as 0.
     #[test]
     fn reads_the_xf_id() {
-        let obj = read_xf(r#"<xf numFmtId="9" fontId="6" fillId="0" borderId="0" xfId="6" applyFont="1"/>"#);
+        let obj = read_xf(
+            r#"<xf numFmtId="9" fontId="6" fillId="0" borderId="0" xfId="6" applyFont="1"/>"#,
+        );
         assert_eq!(*obj.get_format_id(), 6);
         assert_eq!(*obj.get_number_format_id(), 9);
     }
