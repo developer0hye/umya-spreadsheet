@@ -401,7 +401,9 @@ impl Cell {
                             &reader.read_text_into(e.name(), &mut buf).unwrap(),
                         );
                     }
-                    b"v" => {
+                    // Some writers wrap an inline string's <is> in <v>. Leave
+                    // that <v> unread so the nested <is><t> is parsed below.
+                    b"v" if type_value != "inlineStr" => {
                         let mut buf = Vec::new();
                         let text = crate::helper::utils::unescape_xml_text(
                             &reader.read_text_into(e.name(), &mut buf).unwrap(),
@@ -673,6 +675,16 @@ mod tests {
 
         assert_eq!(cell.get_formula(), r#"A2&" & "&B2"#);
         assert_eq!(cell.get_value(), "R & D");
+    }
+
+    #[test]
+    fn inline_string_nested_in_a_value_keeps_its_text() {
+        // Some writers wrap the inline string in <v>. The 2.3.3 reader
+        // collected any text in the cell, so these read correctly and must
+        // keep doing so.
+        let cell = read_cell(r#"<c r="A1" t="inlineStr"><v><is><t>Names</t></is></v></c>"#);
+
+        assert_eq!(cell.get_value(), "Names");
     }
 
     #[test]
