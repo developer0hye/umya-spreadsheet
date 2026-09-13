@@ -216,20 +216,25 @@ impl DataValidation {
             return;
         }
 
-        let mut value: String = String::new();
         let mut buf = Vec::new();
         loop {
             match reader.read_event_into(&mut buf) {
-                Ok(Event::Text(e)) => {
-                    value = e.unescape().unwrap().to_string();
-                }
-                Ok(Event::End(ref e)) => match e.name().into_inner() {
+                Ok(Event::Start(ref e)) => match e.name().into_inner() {
                     b"formula1" => {
-                        self.formula1.set_value_string(std::mem::take(&mut value));
+                        let mut buf = Vec::new();
+                        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+                        self.formula1
+                            .set_value_string(crate::helper::utils::unescape_xml_text(&text));
                     }
                     b"formula2" => {
-                        self.formula2.set_value_string(std::mem::take(&mut value));
+                        let mut buf = Vec::new();
+                        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+                        self.formula2
+                            .set_value_string(crate::helper::utils::unescape_xml_text(&text));
                     }
+                    _ => {}
+                },
+                Ok(Event::End(ref e)) => match e.name().into_inner() {
                     b"dataValidation" => return,
                     _ => {}
                 },
@@ -308,5 +313,26 @@ impl DataValidation {
             }
             write_end_tag(writer, "dataValidation");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formulas_keep_escaped_characters() {
+        let mut reader = Reader::from_str(
+            r#"<dataValidation type="textLength" operator="between" allowBlank="1" sqref="C1"><formula1>LEN(A1&amp;B1)</formula1><formula2>IF(B1&lt;&gt;"",100,10)</formula2></dataValidation>"#,
+        );
+        let data_validation_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected dataValidation start event, got {event:?}"),
+        };
+        let mut data_validation = DataValidation::default();
+        data_validation.set_attributes(&mut reader, &data_validation_start, false);
+
+        assert_eq!(data_validation.get_formula1(), "LEN(A1&B1)");
+        assert_eq!(data_validation.get_formula2(), r#"IF(B1<>"",100,10)"#);
     }
 }

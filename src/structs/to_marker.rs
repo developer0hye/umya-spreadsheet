@@ -82,24 +82,41 @@ impl ToMarker {
         reader: &mut Reader<R>,
         _e: &BytesStart,
     ) {
-        let mut string_value: String = String::new();
         let mut buf = Vec::new();
         loop {
             match reader.read_event_into(&mut buf) {
-                Ok(Event::Text(e)) => string_value = e.unescape().unwrap().to_string(),
-                Ok(Event::End(ref e)) => match e.name().0 {
+                Ok(Event::Start(ref e)) => match e.name().0 {
                     b"xdr:col" => {
-                        self.col = string_value.parse::<usize>().unwrap();
+                        let mut buf = Vec::new();
+                        let text = crate::helper::utils::unescape_xml_text(
+                            &reader.read_text_into(e.name(), &mut buf).unwrap(),
+                        );
+                        self.col = text.trim().parse::<usize>().unwrap();
                     }
                     b"xdr:colOff" => {
-                        self.col_off = string_value.parse::<usize>().unwrap();
+                        let mut buf = Vec::new();
+                        let text = crate::helper::utils::unescape_xml_text(
+                            &reader.read_text_into(e.name(), &mut buf).unwrap(),
+                        );
+                        self.col_off = text.trim().parse::<usize>().unwrap();
                     }
                     b"xdr:row" => {
-                        self.row = string_value.parse::<usize>().unwrap();
+                        let mut buf = Vec::new();
+                        let text = crate::helper::utils::unescape_xml_text(
+                            &reader.read_text_into(e.name(), &mut buf).unwrap(),
+                        );
+                        self.row = text.trim().parse::<usize>().unwrap();
                     }
                     b"xdr:rowOff" => {
-                        self.row_off = string_value.parse::<usize>().unwrap();
+                        let mut buf = Vec::new();
+                        let text = crate::helper::utils::unescape_xml_text(
+                            &reader.read_text_into(e.name(), &mut buf).unwrap(),
+                        );
+                        self.row_off = text.trim().parse::<usize>().unwrap();
                     }
+                    _ => (),
+                },
+                Ok(Event::End(ref e)) => match e.name().0 {
                     b"to" => return,
                     _ => (),
                 },

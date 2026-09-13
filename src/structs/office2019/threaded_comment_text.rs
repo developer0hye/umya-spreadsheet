@@ -27,20 +27,11 @@ impl ThreadedCommentText {
     pub(crate) fn set_attributes<R: std::io::BufRead>(
         &mut self,
         reader: &mut Reader<R>,
-        _e: &BytesStart,
+        e: &BytesStart,
     ) {
-        xml_read_loop!(
-            reader,
-            Event::Text(e) => {
-                self.set_value(e.unescape().unwrap());
-            },
-            Event::End(ref e) => {
-                if e.name().0 == b"text" {
-                    return
-                }
-            },
-            Event::Eof => panic!("Error: Could not find {} end element", "text")
-        );
+        let mut buf = Vec::new();
+        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+        self.set_value(crate::helper::utils::unescape_xml_text(&text));
     }
 
     pub(crate) fn write_to(&self, writer: &mut Writer<Cursor<Vec<u8>>>) {

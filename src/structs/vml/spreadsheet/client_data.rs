@@ -400,3 +400,52 @@ impl AdjustmentCoordinate for ClientData {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn note_client_data_as_excel_writes_it() {
+        // Excel puts the anchor on an indented line of its own, and
+        // vml_drawing.rs reads the part with text trimming enabled.
+        let mut reader = Reader::from_str(
+            "<x:ClientData ObjectType=\"Note\"><x:MoveWithCells/><x:SizeWithCells/><x:Anchor>\n    1, 15, 0, 2, 3, 15, 4, 16</x:Anchor><x:AutoFill>False</x:AutoFill><x:Row>1</x:Row><x:Column>0</x:Column><x:Visible>True</x:Visible></x:ClientData>",
+        );
+        reader.config_mut().trim_text(true);
+        let client_data_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected x:ClientData start event, got {event:?}"),
+        };
+        let mut client_data = ClientData::default();
+        client_data.set_attributes(&mut reader, &client_data_start);
+
+        let anchor = client_data.get_anchor();
+        assert_eq!(
+            [
+                *anchor.get_left_column(),
+                *anchor.get_left_offset(),
+                *anchor.get_top_row(),
+                *anchor.get_top_offset(),
+                *anchor.get_right_column(),
+                *anchor.get_right_offset(),
+                *anchor.get_bottom_row(),
+                *anchor.get_bottom_offset(),
+            ],
+            [1, 15, 0, 2, 3, 15, 4, 16]
+        );
+        assert_eq!(
+            client_data.get_auto_fill().unwrap().get_value(),
+            Some(&false)
+        );
+        assert_eq!(client_data.get_visible().unwrap().get_value(), Some(&true));
+        assert_eq!(
+            client_data.get_comment_row_target().unwrap().get_value(),
+            &1
+        );
+        assert_eq!(
+            client_data.get_comment_column_target().unwrap().get_value(),
+            &0
+        );
+    }
+}

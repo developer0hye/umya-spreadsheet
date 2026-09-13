@@ -45,20 +45,12 @@ impl CommentRowTarget {
     pub(crate) fn set_attributes<R: std::io::BufRead>(
         &mut self,
         reader: &mut Reader<R>,
-        _e: &BytesStart,
+        e: &BytesStart,
     ) {
-        xml_read_loop!(
-            reader,
-            Event::Text(e) => {
-                self.value.set_value_string(e.unescape().unwrap());
-            },
-            Event::End(ref e) => {
-                if e.name().0 == b"x:Row" {
-                    return
-                }
-            },
-            Event::Eof => panic!("Error: Could not find {} end element", "x:Row")
-        );
+        let mut buf = Vec::new();
+        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+        self.value
+            .set_value_string(crate::helper::utils::unescape_xml_text(&text));
     }
 
     #[inline]

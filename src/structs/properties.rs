@@ -218,26 +218,22 @@ impl Properties {
         reader: &mut Reader<R>,
         _e: &BytesStart,
     ) {
-        let mut value: String = String::new();
         xml_read_loop!(
             reader,
-            Event::Text(e) => {
-                value = e.unescape().unwrap().to_string();
-            },
-            Event::End(ref e) => match e.name().into_inner() {
-                b"dc:title" => {self.set_title(std::mem::take(&mut value));},
-                b"dc:subject" => {self.set_subject(std::mem::take(&mut value));},
-                b"dc:creator" => {self.set_creator(std::mem::take(&mut value));},
-                b"cp:keywords" => {self.set_keywords(std::mem::take(&mut value));},
-                b"dc:description" => {self.set_description(std::mem::take(&mut value));},
-                b"cp:lastModifiedBy" => {self.set_last_modified_by(std::mem::take(&mut value));},
-                b"cp:revision" => {self.set_revision(std::mem::take(&mut value));},
-                b"dcterms:created" => {self.set_created(std::mem::take(&mut value));},
-                b"dcterms:modified" => {self.set_modified(std::mem::take(&mut value));},
-                b"cp:category" => {self.set_category(std::mem::take(&mut value));},
-                b"cp:version" => {self.set_version(std::mem::take(&mut value));},
-                b"Manager" => {self.set_manager(std::mem::take(&mut value));},
-                b"Company" => {self.set_company(std::mem::take(&mut value));},
+            Event::Start(ref e) => match e.name().into_inner() {
+                b"dc:title" => {if let Some(v) = read_text(reader, e) {self.set_title(v);}},
+                b"dc:subject" => {if let Some(v) = read_text(reader, e) {self.set_subject(v);}},
+                b"dc:creator" => {if let Some(v) = read_text(reader, e) {self.set_creator(v);}},
+                b"cp:keywords" => {if let Some(v) = read_text(reader, e) {self.set_keywords(v);}},
+                b"dc:description" => {if let Some(v) = read_text(reader, e) {self.set_description(v);}},
+                b"cp:lastModifiedBy" => {if let Some(v) = read_text(reader, e) {self.set_last_modified_by(v);}},
+                b"cp:revision" => {if let Some(v) = read_text(reader, e) {self.set_revision(v);}},
+                b"dcterms:created" => {if let Some(v) = read_text(reader, e) {self.set_created(v);}},
+                b"dcterms:modified" => {if let Some(v) = read_text(reader, e) {self.set_modified(v);}},
+                b"cp:category" => {if let Some(v) = read_text(reader, e) {self.set_category(v);}},
+                b"cp:version" => {if let Some(v) = read_text(reader, e) {self.set_version(v);}},
+                b"Manager" => {if let Some(v) = read_text(reader, e) {self.set_manager(v);}},
+                b"Company" => {if let Some(v) = read_text(reader, e) {self.set_company(v);}},
                 _ => {}
             },
             Event::Eof => return,
@@ -249,22 +245,11 @@ impl Properties {
         reader: &mut Reader<R>,
         _e: &BytesStart,
     ) {
-        let mut value: String = String::new();
         xml_read_loop!(
             reader,
-            Event::Start(ref e) => {
-                match e.name().into_inner(){
-                    b"Manager" => {value = String::new();},
-                    b"Company" => {value = String::new();},
-                    _ => {}
-                }
-            },
-            Event::Text(e) => {
-                value = e.unescape().unwrap().to_string();
-            },
-            Event::End(ref e) => match e.name().into_inner() {
-                b"Manager" => {self.set_manager(std::mem::take(&mut value));}
-                b"Company" => {self.set_company(std::mem::take(&mut value));}
+            Event::Start(ref e) => match e.name().into_inner() {
+                b"Manager" => {if let Some(v) = read_text(reader, e) {self.set_manager(v);}},
+                b"Company" => {if let Some(v) = read_text(reader, e) {self.set_company(v);}},
                 _ =>{}
             },
             Event::Eof => return,
@@ -510,5 +495,40 @@ impl Properties {
     #[inline]
     pub(crate) fn write_to_custom(&self, writer: &mut Writer<Cursor<Vec<u8>>>) {
         self.custom_properties.write_to(writer);
+    }
+}
+
+// Reads the text of the element `e` opens, trimmed as the docProps readers'
+// trim_text(true) delivered it; read_text_into returns the raw content. A
+// document that ends before the end tag yields `None`; the caller's loop then
+// stops at end of input.
+fn read_text<R: std::io::BufRead>(reader: &mut Reader<R>, e: &BytesStart) -> Option<String> {
+    let mut buf = Vec::new();
+    let text = reader.read_text_into(e.name(), &mut buf).ok()?;
+    Some(
+        crate::helper::utils::unescape_xml_text(&text)
+            .trim()
+            .to_string(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn indented_core_properties_read_without_surrounding_whitespace() {
+        let mut reader = Reader::from_str(
+            "<cp:coreProperties>\n  <dc:title>\n    Quarterly R&amp;D Budget\n  </dc:title>\n  <dc:creator>Finance Team</dc:creator>\n</cp:coreProperties>",
+        );
+        let core_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected coreProperties start event, got {event:?}"),
+        };
+        let mut properties = Properties::default();
+        properties.set_attributes_core(&mut reader, &core_start);
+
+        assert_eq!(properties.get_title(), "Quarterly R&D Budget");
+        assert_eq!(properties.get_creator(), "Finance Team");
     }
 }

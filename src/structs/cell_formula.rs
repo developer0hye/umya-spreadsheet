@@ -180,18 +180,10 @@ impl CellFormula {
         set_string_from_xml!(self, e, shared_index, "si");
 
         if !is_empty {
-            xml_read_loop!(
-                reader,
-                Event::Text(e) => {
-                    self.text.set_value(e.unescape().unwrap().to_string());
-                },
-                Event::End(ref e) => {
-                    if e.name().into_inner() == b"f" {
-                        break;
-                    }
-                },
-                Event::Eof => panic!("Error: Could not find {} end element", "f")
-            );
+            let mut buf = Vec::new();
+            let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+            self.text
+                .set_value(crate::helper::utils::unescape_xml_text(&text));
         }
 
         // Shared
