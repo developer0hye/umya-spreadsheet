@@ -187,20 +187,12 @@ impl DefinedName {
         set_string_from_xml!(self, e, local_sheet_id, "localSheetId");
         set_string_from_xml!(self, e, hidden, "hidden");
 
-        let mut value: String = String::new();
-        xml_read_loop!(
-            reader,
-                Event::Text(e) => {
-                    value = e.unescape().unwrap().to_string();
-                },
-                Event::End(ref e) => {
-                    if e.name().into_inner() == b"definedName" {
-                        self.set_address(value);
-                        return
-                    }
-                },
-                Event::Eof => panic!("Error: Could not find {} end element", "definedName")
-        );
+        // The workbook reader trims text, but read_text_into returns the raw
+        // element content; an indented definition would no longer parse as an
+        // address, so trim it as the reader used to.
+        let mut buf = Vec::new();
+        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+        self.set_address(crate::helper::utils::unescape_xml_text(&text).trim());
     }
 
     pub(crate) fn write_to(&self, writer: &mut Writer<Cursor<Vec<u8>>>) {
@@ -284,5 +276,43 @@ impl AdjustmentCoordinateWithSheet for DefinedName {
             return true;
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn read_defined_name(xml: &str) -> DefinedName {
+        let mut reader = Reader::from_str(xml);
+        let defined_name_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected definedName start event, got {event:?}"),
+        };
+        let mut defined_name = DefinedName::default();
+        defined_name.set_attributes(&mut reader, &defined_name_start);
+        defined_name
+    }
+
+    #[test]
+    fn indentation_around_a_definition_does_not_change_it() {
+        for definition in [
+            "Sheet1!$A$1:$H$40",
+            "Sheet1!$1:$2",
+            "'R&amp;D'!$A:$B,'R&amp;D'!$1:$1",
+        ] {
+            let compact = read_defined_name(&format!(
+                "<definedName name=\"_xlnm.Print_Area\">{definition}</definedName>"
+            ));
+            let indented = read_defined_name(&format!(
+                "<definedName name=\"_xlnm.Print_Area\">\n      {definition}\n    </definedName>"
+            ));
+
+            assert_eq!(
+                indented.get_address(),
+                compact.get_address(),
+                "{definition}"
+            );
+        }
     }
 }

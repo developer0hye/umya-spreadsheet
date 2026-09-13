@@ -49,69 +49,10 @@ impl TextBox {
         set_string_from_xml!(self, e, style, "style");
 
         let mut buf = Vec::new();
-        let mut inner_text = String::new();
         reader.config_mut().check_end_names = false;
-        loop {
-            match reader.read_event_into(&mut buf) {
-                Ok(Event::Empty(ref e)) => {
-                    let mut tag = std::str::from_utf8(e.name().into_inner())
-                        .unwrap()
-                        .to_string();
-                    let mut attrs = vec![];
-                    e.attributes().for_each(|a| {
-                        if let Ok(attribute) = a {
-                            if let (Ok(key), Ok(value)) = (
-                                std::str::from_utf8(attribute.key.into_inner()),
-                                std::str::from_utf8(attribute.value.as_ref()),
-                            ) {
-                                attrs.push((key.to_owned(), value.to_owned()));
-                            }
-                        }
-                    });
-                    for (key, value) in &attrs {
-                        tag = format!("{} {}=\"{}\"", tag, key, value);
-                    }
-                    inner_text = format!("{}<{}/>", inner_text, tag);
-                }
-                Ok(Event::Start(ref e)) => {
-                    let mut tag = std::str::from_utf8(e.name().into_inner())
-                        .unwrap()
-                        .to_string();
-                    let mut attrs = vec![];
-                    e.attributes().for_each(|a| {
-                        if let Ok(attribute) = a {
-                            if let (Ok(key), Ok(value)) = (
-                                std::str::from_utf8(attribute.key.into_inner()),
-                                std::str::from_utf8(attribute.value.as_ref()),
-                            ) {
-                                attrs.push((key.to_owned(), value.to_owned()));
-                            }
-                        }
-                    });
-                    for (key, value) in &attrs {
-                        tag = format!("{} {}=\"{}\"", tag, key, value);
-                    }
-                    inner_text = format!("{}<{}>", inner_text, tag);
-                }
-                Ok(Event::Text(ref e)) => {
-                    let s = e.unescape().unwrap();
-                    inner_text = format!("{}{}", inner_text, s);
-                }
-                Ok(Event::End(ref e)) => {
-                    if e.name().into_inner() == b"v:textbox" {
-                        break;
-                    }
-                    let s = std::str::from_utf8(e.name().into_inner()).unwrap();
-                    inner_text = format!("{}</{}>", inner_text, s);
-                }
-                Ok(Event::Eof) => break,
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
-                _ => (),
-            }
-            buf.clear();
+        if let Ok(text) = reader.read_text_into(e.name(), &mut buf) {
+            self.set_innder(crate::helper::utils::unescape_xml_text(&text));
         }
-        //reader.check_end_names(true);
-        self.set_innder(inner_text);
     }
 
     pub(crate) fn write_to(&self, writer: &mut Writer<Cursor<Vec<u8>>>) {

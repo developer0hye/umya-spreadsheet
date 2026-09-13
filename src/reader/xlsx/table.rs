@@ -18,7 +18,6 @@ pub(crate) fn read(
     let mut buf = Vec::new();
     let mut table = Table::default();
     let mut table_column = TableColumn::default();
-    let mut string_value = String::new();
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(ref e)) => match e.name().into_inner() {
@@ -94,8 +93,15 @@ pub(crate) fn read(
                 }
                 _ => (),
             },
-            Ok(Event::Text(e)) => string_value = e.unescape().unwrap().to_string(),
             Ok(Event::Start(ref e)) => match e.name().into_inner() {
+                b"calculatedColumnFormula" => {
+                    let mut buf = Vec::new();
+                    if let Ok(text) = reader.read_text_into(e.name(), &mut buf) {
+                        table_column.set_calculated_column_formula(
+                            crate::helper::utils::unescape_xml_text(&text),
+                        );
+                    }
+                }
                 b"table" => {
                     for a in e.attributes().with_checks(false) {
                         match a {
@@ -153,10 +159,6 @@ pub(crate) fn read(
                 _ => (),
             },
             Ok(Event::End(ref e)) => match e.name().into_inner() {
-                b"calculatedColumnFormula" => {
-                    table_column.set_calculated_column_formula(string_value);
-                    string_value = String::new();
-                }
                 b"tableColumn" => {
                     // add column to table (if it has a name)
                     if !table_column.get_name().is_empty() {

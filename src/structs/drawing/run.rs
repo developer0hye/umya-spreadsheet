@@ -46,17 +46,22 @@ impl Run {
         xml_read_loop!(
             reader,
             Event::Start(ref e) => {
-                if e.name().0 == b"a:rPr" {
-                    self.run_properties.set_attributes(reader, e, false);
+                match e.name().0 {
+                    b"a:rPr" => {
+                        self.run_properties.set_attributes(reader, e, false);
+                    }
+                    b"a:t" => {
+                        let mut buf = Vec::new();
+                        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+                        self.set_text(crate::helper::utils::unescape_xml_text(&text));
+                    }
+                    _ => {}
                 }
             },
             Event::Empty(ref e) => {
                 if e.name().0 == b"a:rPr" {
                     self.run_properties.set_attributes(reader, e, true);
                 }
-            },
-            Event::Text(e) => {
-                self.set_text(e.unescape().unwrap());
             },
             Event::End(ref e) => {
                 if e.name().0 == b"a:r" {

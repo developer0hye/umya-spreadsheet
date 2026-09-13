@@ -94,3 +94,27 @@ impl HeaderFooter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn header_and_footer_codes_keep_escaped_ampersands() {
+        let mut reader = Reader::from_str(
+            r#"<headerFooter><oddHeader>&amp;L&amp;P of &amp;N</oddHeader><oddFooter>&amp;C&amp;"Arial,Bold"R&amp;D</oddFooter></headerFooter>"#,
+        );
+        let header_footer_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected headerFooter start event, got {event:?}"),
+        };
+        let mut header_footer = HeaderFooter::default();
+        header_footer.set_attributes(&mut reader, &header_footer_start);
+
+        assert_eq!(header_footer.get_odd_header().get_value(), "&L&P of &N");
+        assert_eq!(
+            header_footer.get_odd_footer().get_value(),
+            r#"&C&"Arial,Bold"R&D"#
+        );
+    }
+}

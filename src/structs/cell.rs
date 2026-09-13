@@ -387,7 +387,6 @@ impl Cell {
         let mut buf = Vec::new();
         loop {
             match reader.read_event_into(&mut buf) {
-                Ok(Event::Text(e)) => string_value = e.unescape().unwrap().to_string(),
                 Ok(Event::Start(ref e)) => match e.name().into_inner() {
                     b"f" => {
                         let mut obj = CellFormula::default();
@@ -395,12 +394,42 @@ impl Cell {
                         self.cell_value.set_formula_obj(obj);
                     }
                     b"t" => {
-                        if let Some(Ok(attribute)) = e.attributes().next() {
-                            if attribute.key.into_inner() == b"xml:space"
-                                && attribute.value.as_ref() == b"preserve"
-                            {
-                                reader.config_mut().trim_text(false);
+                        // read_text_into returns the raw content, so leading and
+                        // trailing spaces survive without toggling trim_text.
+                        let mut buf = Vec::new();
+                        string_value = crate::helper::utils::unescape_xml_text(
+                            &reader.read_text_into(e.name(), &mut buf).unwrap(),
+                        );
+                    }
+                    b"v" => {
+                        let mut buf = Vec::new();
+                        let text = crate::helper::utils::unescape_xml_text(
+                            &reader.read_text_into(e.name(), &mut buf).unwrap(),
+                        );
+                        match type_value.as_str() {
+                            "str" => {
+                                self.set_value_string_crate(&text);
                             }
+                            "s" => {
+                                if let Ok(index) = text.parse::<usize>() {
+                                    if let Some(shared_string_item) =
+                                        shared_string_table.get_shared_string_item().get(index)
+                                    {
+                                        self.set_shared_string_item(shared_string_item.clone());
+                                    }
+                                }
+                            }
+                            "b" => {
+                                let prm = text == "1";
+                                self.set_value_bool_crate(prm);
+                            }
+                            "e" => {
+                                self.set_error(&text);
+                            }
+                            "" | "n" => {
+                                self.set_value_crate(&text);
+                            }
+                            _ => {}
                         }
                     }
                     _ => (),
@@ -413,40 +442,12 @@ impl Cell {
                     }
                 }
                 Ok(Event::End(ref e)) => match e.name().into_inner() {
-                    b"v" => match type_value.as_str() {
-                        "str" => {
-                            self.set_value_string_crate(&string_value);
-                        }
-                        "s" => {
-                            if let Ok(index) = string_value.parse::<usize>() {
-                                if let Some(shared_string_item) =
-                                    shared_string_table.get_shared_string_item().get(index)
-                                {
-                                    self.set_shared_string_item(shared_string_item.clone());
-                                }
-                            }
-                        }
-                        "b" => {
-                            let prm = string_value == "1";
-                            self.set_value_bool_crate(prm);
-                        }
-                        "e" => {
-                            self.set_error(&string_value);
-                        }
-                        "" | "n" => {
-                            self.set_value_crate(&string_value);
-                        }
-                        _ => {}
-                    },
                     b"is" => {
                         if type_value == "inlineStr" {
                             self.set_value_string_crate(&string_value);
                         }
                     }
                     b"c" => return,
-                    b"t" => {
-                        reader.config_mut().trim_text(true);
-                    }
                     _ => (),
                 },
                 Ok(Event::Eof) => panic!("Error: Could not find {} end element", "c"),
@@ -645,5 +646,39 @@ mod tests {
         assert_eq!(cell.get_formatted_value(), "0050");
         assert_eq!(cell.get_data_type(), "s");
         assert!(cell.get_value_number().is_none());
+    }
+    fn read_cell(xml: &str) -> Cell {
+        let mut reader = Reader::from_str(xml);
+        let cell_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected cell start event, got {event:?}"),
+        };
+        let mut cell = Cell::default();
+        let mut formula_shared_list = HashMap::new();
+        cell.set_attributes(
+            &mut reader,
+            &cell_start,
+            &SharedStringTable::default(),
+            &Stylesheet::default(),
+            false,
+            &mut formula_shared_list,
+        );
+        cell
+    }
+
+    #[test]
+    fn formula_and_cached_string_keep_escaped_ampersands() {
+        let cell =
+            read_cell(r#"<c r="C2" t="str"><f>A2&amp;" &amp; "&amp;B2</f><v>R &amp; D</v></c>"#);
+
+        assert_eq!(cell.get_formula(), r#"A2&" & "&B2"#);
+        assert_eq!(cell.get_value(), "R & D");
+    }
+
+    #[test]
+    fn inline_string_keeps_escaped_characters() {
+        let cell = read_cell(r#"<c r="A1" t="inlineStr"><is><t>R&amp;D &lt;2025&gt;</t></is></c>"#);
+
+        assert_eq!(cell.get_value(), "R&D <2025>");
     }
 }

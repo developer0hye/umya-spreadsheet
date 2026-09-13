@@ -152,29 +152,21 @@ impl Anchor {
     pub(crate) fn set_attributes<R: std::io::BufRead>(
         &mut self,
         reader: &mut Reader<R>,
-        _e: &BytesStart,
+        e: &BytesStart,
     ) {
-        xml_read_loop!(
-            reader,
-            Event::Text(e) => {
-                let text = e.unescape().unwrap();
-                let split_str: Vec<&str> = text.split(',').collect();
-                self.set_left_column(Self::get_number(split_str.first()));
-                self.set_left_offset(Self::get_number(split_str.get(1)));
-                self.set_top_row(Self::get_number(split_str.get(2)));
-                self.set_top_offset(Self::get_number(split_str.get(3)));
-                self.set_right_column(Self::get_number(split_str.get(4)));
-                self.set_right_offset(Self::get_number(split_str.get(5)));
-                self.set_bottom_row(Self::get_number(split_str.get(6)));
-                self.set_bottom_offset(Self::get_number(split_str.get(7)));
-            },
-            Event::End(ref e) => {
-                if e.name().0 == b"x:Anchor" {
-                    return
-                }
-            },
-            Event::Eof => panic!("Error: Could not find {} end element", "x:Anchor")
+        let mut buf = Vec::new();
+        let text = crate::helper::utils::unescape_xml_text(
+            &reader.read_text_into(e.name(), &mut buf).unwrap(),
         );
+        let split_str: Vec<&str> = text.split(',').collect();
+        self.set_left_column(Self::get_number(split_str.first()));
+        self.set_left_offset(Self::get_number(split_str.get(1)));
+        self.set_top_row(Self::get_number(split_str.get(2)));
+        self.set_top_offset(Self::get_number(split_str.get(3)));
+        self.set_right_column(Self::get_number(split_str.get(4)));
+        self.set_right_offset(Self::get_number(split_str.get(5)));
+        self.set_bottom_row(Self::get_number(split_str.get(6)));
+        self.set_bottom_offset(Self::get_number(split_str.get(7)));
     }
 
     #[inline]

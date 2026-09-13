@@ -64,29 +64,11 @@ impl ReferenceSequence {
     pub(crate) fn set_attributes<R: std::io::BufRead>(
         &mut self,
         reader: &mut Reader<R>,
-        _e: &BytesStart,
+        e: &BytesStart,
     ) {
-        let mut value: String = String::new();
         let mut buf = Vec::new();
-        loop {
-            match reader.read_event_into(&mut buf) {
-                Ok(Event::Text(e)) => {
-                    value = e.unescape().unwrap().to_string();
-                }
-                Ok(Event::End(ref e)) => match e.name().into_inner() {
-                    b"xm:sqref" => {
-                        self.set_sqref(value);
-                        value = String::new();
-                        return;
-                    }
-                    _ => (),
-                },
-                Ok(Event::Eof) => panic!("Error: Could not find {} end element", "xm:sqref"),
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
-                _ => (),
-            }
-            buf.clear();
-        }
+        let text = reader.read_text_into(e.name(), &mut buf).unwrap();
+        self.set_sqref(crate::helper::utils::unescape_xml_text(&text));
     }
 
     #[inline]

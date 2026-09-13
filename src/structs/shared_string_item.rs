@@ -141,3 +141,42 @@ impl SharedStringItem {
         write_end_tag(writer, "si");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn read_shared_string_item(xml: &str) -> SharedStringItem {
+        let mut reader = Reader::from_str(xml);
+        let si_start = match reader.read_event().unwrap() {
+            Event::Start(event) => event,
+            event => panic!("expected si start event, got {event:?}"),
+        };
+        let mut item = SharedStringItem::default();
+        item.set_attributes(&mut reader, &si_start);
+        item
+    }
+
+    #[test]
+    fn plain_text_keeps_escaped_characters() {
+        let item = read_shared_string_item(r#"<si><t>R&amp;D &lt;2025&gt;</t></si>"#);
+
+        assert_eq!(item.get_text().unwrap().get_value(), "R&D <2025>");
+    }
+
+    #[test]
+    fn rich_text_runs_keep_escaped_characters() {
+        let item = read_shared_string_item(
+            r#"<si><r><t>R&amp;D</t></r><r><rPr><b/></rPr><t xml:space="preserve"> &amp; Sales</t></r></si>"#,
+        );
+
+        let rich_text = item.get_rich_text().unwrap();
+        let runs: Vec<&str> = rich_text
+            .get_rich_text_elements()
+            .iter()
+            .map(|run| run.get_text())
+            .collect();
+        assert_eq!(runs, ["R&D", " & Sales"]);
+        assert_eq!(rich_text.get_text(), "R&D & Sales");
+    }
+}
