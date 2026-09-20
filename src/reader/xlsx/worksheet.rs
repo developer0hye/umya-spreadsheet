@@ -27,7 +27,9 @@ pub(crate) fn read(
     stylesheet: &Stylesheet,
 ) -> Result<(), XlsxError> {
     let data = std::io::Cursor::new(raw_data_of_worksheet.get_worksheet_file().get_file_data());
-    let mut reader = Reader::from_reader(data);
+    let mut reader = Reader::from_reader(
+        super::worksheet_namespace::WorksheetNamespaceReader::new(data),
+    );
     reader.config_mut().trim_text(false);
     let mut formula_shared_list: HashMap<u32, (String, Vec<FormulaToken>)> = HashMap::new();
     xml_read_loop!(
@@ -224,7 +226,9 @@ pub(crate) fn read_lite(
     stylesheet: &Stylesheet,
 ) -> Result<Cells, XlsxError> {
     let data = std::io::Cursor::new(raw_data_of_worksheet.get_worksheet_file().get_file_data());
-    let mut reader = Reader::from_reader(data);
+    let mut reader = Reader::from_reader(
+        super::worksheet_namespace::WorksheetNamespaceReader::new(data),
+    );
     reader.config_mut().trim_text(false);
 
     let mut cells = Cells::default();
