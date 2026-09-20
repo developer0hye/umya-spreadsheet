@@ -22,6 +22,13 @@ impl PageMargins {
         self.left.get_value()
     }
 
+    /// Whether the left margin was explicitly set, including zero.
+    #[inline]
+    #[must_use]
+    pub fn has_left(&self) -> bool {
+        self.left.has_value()
+    }
+
     #[inline]
     pub fn set_left(&mut self, value: f64) -> &mut Self {
         self.left.set_value(value);
@@ -31,6 +38,13 @@ impl PageMargins {
     #[inline]
     pub fn get_right(&self) -> &f64 {
         self.right.get_value()
+    }
+
+    /// Whether the right margin was explicitly set, including zero.
+    #[inline]
+    #[must_use]
+    pub fn has_right(&self) -> bool {
+        self.right.has_value()
     }
 
     #[inline]
@@ -44,6 +58,13 @@ impl PageMargins {
         self.top.get_value()
     }
 
+    /// Whether the top margin was explicitly set, including zero.
+    #[inline]
+    #[must_use]
+    pub fn has_top(&self) -> bool {
+        self.top.has_value()
+    }
+
     #[inline]
     pub fn set_top(&mut self, value: f64) -> &mut Self {
         self.top.set_value(value);
@@ -53,6 +74,13 @@ impl PageMargins {
     #[inline]
     pub fn get_bottom(&self) -> &f64 {
         self.bottom.get_value()
+    }
+
+    /// Whether the bottom margin was explicitly set, including zero.
+    #[inline]
+    #[must_use]
+    pub fn has_bottom(&self) -> bool {
+        self.bottom.has_value()
     }
 
     #[inline]
@@ -66,6 +94,13 @@ impl PageMargins {
         self.header.get_value()
     }
 
+    /// Whether the header margin was explicitly set, including zero.
+    #[inline]
+    #[must_use]
+    pub fn has_header(&self) -> bool {
+        self.header.has_value()
+    }
+
     #[inline]
     pub fn set_header(&mut self, value: f64) -> &mut Self {
         self.header.set_value(value);
@@ -75,6 +110,13 @@ impl PageMargins {
     #[inline]
     pub fn get_footer(&self) -> &f64 {
         self.footer.get_value()
+    }
+
+    /// Whether the footer margin was explicitly set, including zero.
+    #[inline]
+    #[must_use]
+    pub fn has_footer(&self) -> bool {
+        self.footer.has_value()
     }
 
     #[inline]
@@ -102,20 +144,28 @@ impl PageMargins {
     }
 
     pub(crate) fn write_to(&self, writer: &mut Writer<Cursor<Vec<u8>>>) {
-        // pageMargins
-        let mut attributes: Vec<(&str, &str)> = Vec::new();
-        let left = self.left.get_value_string();
-        attributes.push(("left", &left));
-        let right = self.right.get_value_string();
-        attributes.push(("right", &right));
-        let top = self.top.get_value_string();
-        attributes.push(("top", &top));
-        let bottom = self.bottom.get_value_string();
-        attributes.push(("bottom", &bottom));
-        let header = self.header.get_value_string();
-        attributes.push(("header", &header));
-        let footer = self.footer.get_value_string();
-        attributes.push(("footer", &footer));
+        // Numeric zero is a valid explicit margin, not an absence marker.
+        let value_or_default = |value: &DoubleValue, default: &str| -> String {
+            if value.has_value() {
+                value.get_value_string()
+            } else {
+                default.to_string()
+            }
+        };
+        let left = value_or_default(&self.left, "0.7");
+        let right = value_or_default(&self.right, "0.7");
+        let top = value_or_default(&self.top, "0.75");
+        let bottom = value_or_default(&self.bottom, "0.75");
+        let header = value_or_default(&self.header, "0.3");
+        let footer = value_or_default(&self.footer, "0.3");
+        let attributes = vec![
+            ("left", left.as_str()),
+            ("right", right.as_str()),
+            ("top", top.as_str()),
+            ("bottom", bottom.as_str()),
+            ("header", header.as_str()),
+            ("footer", footer.as_str()),
+        ];
         write_start_tag(writer, "pageMargins", attributes, true);
     }
 }
