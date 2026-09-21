@@ -4,7 +4,7 @@ fmt:
     cargo +nightly fmt --all
 
 clippy:
-    cargo +nightly clippy
+    cargo +nightly clippy --locked
 
 clean:
     cargo clean
@@ -16,8 +16,8 @@ test:
     #!/usr/bin/env sh
     if cargo nextest --help &> /dev/null; then
         # If successful, run 'cargo nextest run'
-        cargo nextest run
+        cargo nextest run --locked
     else
         # If not successful, run 'cargo test'
-        cargo test
+        cargo test --locked
     fi
