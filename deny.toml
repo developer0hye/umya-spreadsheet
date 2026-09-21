@@ -10,3 +10,10 @@ version = 2
 yanked = "deny"
 unmaintained = "none"
 unsound = "workspace"
+ignore = [
+  # Pre-existing when this gate was added (2026-09-22). quick-xml 0.37 is a
+  # direct dependency on this branch; moving to >=0.41 needs an API migration.
+  # office2pdf consumes fix/panic-safety-v2, which is already on quick-xml 0.41.
+  { id = "RUSTSEC-2026-0194", reason = "direct quick-xml 0.37 dependency; fixed in >=0.41, migration pending" },
+  { id = "RUSTSEC-2026-0195", reason = "direct quick-xml 0.37 dependency; fixed in >=0.41, migration pending" },
+]
