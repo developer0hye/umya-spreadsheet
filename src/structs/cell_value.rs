@@ -195,7 +195,7 @@ impl CellValue {
     }
 
     #[inline]
-    pub(crate) fn set_shared_string_item(&mut self, value: SharedStringItem) -> &mut Self {
+    pub(crate) fn set_shared_string_item(&mut self, value: &SharedStringItem) -> &mut Self {
         if let Some(v) = value.get_text() {
             self.set_value_string(v.get_value());
         }
@@ -319,6 +319,32 @@ mod tests {
 
         obj.set_error("#NUM!");
         assert_eq!(obj.get_value(), "#NUM!");
+    }
+
+    #[test]
+    fn set_shared_string_item_borrows_plain_text() {
+        let mut text = Text::default();
+        text.set_value("shared text");
+        let mut item = SharedStringItem::default();
+        item.set_text(text);
+
+        let mut cell_value = CellValue::default();
+        cell_value.set_shared_string_item(&item);
+
+        assert_eq!(cell_value.get_value(), "shared text");
+    }
+
+    #[test]
+    fn set_shared_string_item_borrows_rich_text() {
+        let mut rich_text = RichText::default();
+        rich_text.set_text("shared rich text");
+        let mut item = SharedStringItem::default();
+        item.set_rich_text(rich_text);
+
+        let mut cell_value = CellValue::default();
+        cell_value.set_shared_string_item(&item);
+
+        assert_eq!(cell_value.get_value(), "shared rich text");
     }
 
     #[test]

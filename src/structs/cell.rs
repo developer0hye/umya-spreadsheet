@@ -237,7 +237,7 @@ impl Cell {
     }
 
     #[inline]
-    pub(crate) fn set_shared_string_item(&mut self, value: SharedStringItem) -> &mut Self {
+    pub(crate) fn set_shared_string_item(&mut self, value: &SharedStringItem) -> &mut Self {
         self.cell_value.set_shared_string_item(value);
         self
     }
@@ -417,7 +417,7 @@ impl Cell {
                                     if let Some(shared_string_item) =
                                         shared_string_table.get_shared_string_item().get(index)
                                     {
-                                        self.set_shared_string_item(shared_string_item.clone());
+                                        self.set_shared_string_item(shared_string_item);
                                     }
                                 }
                             }
