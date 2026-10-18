@@ -1,12 +1,14 @@
 [package]
-name = "umya-spreadsheet"
-version = "2.3.3"
+name = "office2pdf-umya-spreadsheet"
+version = "0.1.0"
 authors = ["MathNya <umya.net.info@gmail.com>"]
-repository = "https://github.com/MathNya/umya-spreadsheet"
+repository = "https://github.com/developer0hye/umya-spreadsheet"
 keywords = ["excel", "spreadsheet", "xlsx", "reader", "writer"]
 license = "MIT"
 readme = "README.md"
-description = "umya-spreadsheet is a library written in pure Rust to read and write xlsx file."
+description = "Fork of umya-spreadsheet 2.3.3 carrying the reader fixes office2pdf depends on, until they are released upstream. Imported as `umya_spreadsheet`."
+# Test workbooks and images stay in the repository; the published crate is the library.
+exclude = ["tests/", "images/", "examples/"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -32,9 +34,12 @@ sha2 = "0.10.8"
 thin-vec = "0.2.13"
 thousands = "0.2.0"
 quick-xml = { version = "0.41", features = ["serialize"] }
-zip = { version = "2.2.1", default-features = false, features = ["deflate"] }
+# zip 2.6 changed the reader types src/reader/driver.rs names; office2pdf locks 2.4.2.
+zip = { version = ">=2.2.1, <2.6", default-features = false, features = ["deflate"] }
 
 [lib]
+# Keep the upstream import path for code written against umya-spreadsheet.
+name = "umya_spreadsheet"
 doctest = false
 
 [features]

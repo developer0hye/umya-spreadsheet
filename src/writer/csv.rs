@@ -41,7 +41,12 @@ pub fn write_writer<W: io::Seek + io::Write>(
             }
             // wrap_with_char.
             if option.get_wrap_with_char() != "" {
-                value = format! {"{}{}{}", option.get_wrap_with_char(), value, option.get_wrap_with_char()};
+                value = format!(
+                    "{}{}{}",
+                    option.get_wrap_with_char(),
+                    value,
+                    option.get_wrap_with_char()
+                );
             }
             row_vec.push(value);
         }
