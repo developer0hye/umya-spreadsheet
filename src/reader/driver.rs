@@ -88,7 +88,7 @@ pub(crate) fn normalize_path_to_str(path: &str) -> String {
 pub(crate) fn zip_by_name<'a, R: io::Read + io::Seek>(
     arv: &'a mut zip::ZipArchive<R>,
     name: &str,
-) -> Result<zip::read::ZipFile<'a>, zip::result::ZipError> {
+) -> Result<zip::read::ZipFile<'a, R>, zip::result::ZipError> {
     // 1. Exact match (common case)
     if arv.by_name(name).is_ok() {
         // Re-borrow: `by_name` returns a ZipFile that borrows `arv`, so we
@@ -108,7 +108,7 @@ pub(crate) fn zip_by_name<'a, R: io::Read + io::Seek>(
     let normalized = name.replace('\\', "/").to_ascii_lowercase();
     for i in 0..arv.len() {
         let entry_name = match arv.by_index(i) {
-            Ok(f) => f.name().to_owned(),
+            Ok(f) => f.name()?.into_owned(),
             Err(_) => continue,
         };
         let entry_normalized = entry_name.replace('\\', "/").to_ascii_lowercase();

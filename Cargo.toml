@@ -34,8 +34,8 @@ sha2 = "0.10.8"
 thin-vec = "0.2.13"
 thousands = "0.2.0"
 quick-xml = { version = "0.41", features = ["serialize"] }
-# zip 2.6 changed the reader types src/reader/driver.rs names; office2pdf locks 2.4.2.
-zip = { version = ">=2.2.1, <2.6", default-features = false, features = ["deflate"] }
+# ZIP 9の修正を取り込み、読取APIの変更にも対応する。
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 
 [lib]
 # Keep the upstream import path for code written against umya-spreadsheet.
